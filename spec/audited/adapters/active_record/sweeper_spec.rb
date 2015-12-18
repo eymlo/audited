@@ -3,8 +3,16 @@ require File.expand_path('../active_record_spec_helper', __FILE__)
 class AuditsController < ActionController::Base
   def audit
     @company = Models::ActiveRecord::Company.create
+      Models::ActiveRecord::UserWithSpecificAuditTable.create
     render :nothing => true
   end
+
+  def new_user
+    @table_specific_user =
+      Models::ActiveRecord::UserWithSpecificAuditTable.create!
+    render :nothing => true
+  end
+
 
   def update_user
     current_user.update_attributes( :password => 'foo')
@@ -25,6 +33,22 @@ describe AuditsController, :adapter => :active_record do
   end
 
   let( :user ) { create_user }
+
+  describe "POST audit to specific table user" do
+
+    it "should audit user" do
+      controller.send(:current_user=, user)
+
+      expect {
+        post :new_user
+      }.to change(
+        Models::ActiveRecord::UserWithSpecificAuditTable.audit_class, :count
+      )
+
+      assigns(:table_specific_user).audits.last.user.should == user
+    end
+
+  end
 
   describe "POST audit" do
 

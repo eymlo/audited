@@ -1,6 +1,6 @@
 module Audited
   class Sweeper < ActiveModel::Observer
-    observe Audited.audit_class
+    observe Audited.base_audit_class
 
     def before(controller)
       self.controller = controller

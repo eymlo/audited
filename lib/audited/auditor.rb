@@ -49,7 +49,11 @@ module Audited
 
         class_attribute :non_audited_columns,   :instance_writer => false
         class_attribute :auditing_enabled,      :instance_writer => false
+        class_attribute :audit_table_name,      :instance_writer => false
         class_attribute :audit_associated_with, :instance_writer => false
+
+        # Empty table name means "default"
+        self.audit_table_name = options[:audit_table_name]
 
         if options[:only]
           except = self.column_names - options[:only].flatten.map(&:to_s)
@@ -70,8 +74,8 @@ module Audited
           attr_accessible :audit_comment
         end
 
-        has_many :audits, :as => :auditable, :class_name => Audited.audit_class.name
-        Audited.audit_class.audited_class_names << self.to_s
+        has_many :audits, :as => :auditable, :class_name => audit_class.name
+        audit_class.audited_class_names << self.to_s
 
         after_create  :audit_create if !options[:on] || (options[:on] && options[:on].include?(:create))
         before_update :audit_update if !options[:on] || (options[:on] && options[:on].include?(:update))
@@ -90,8 +94,22 @@ module Audited
         self.auditing_enabled = true
       end
 
-      def has_associated_audits
-        has_many :associated_audits, :as => :associated, :class_name => Audited.audit_class.name
+      def has_associated_audits(options = {})
+        class_attribute :audit_table_name,      :instance_writer => false
+        if options[:audit_table_name]
+          self.audit_table_name = options[:audit_table_name]
+        end
+
+        has_many :associated_audits, :as => :associated, :class_name => audit_class.name
+      end
+
+      def audit_class
+        klass = Audited.audit_class
+        if klass.respond_to?(:child_audit_class)
+          klass = klass.child_audit_class(self.audit_table_name)
+        end
+
+        klass
       end
     end
 
@@ -263,7 +281,7 @@ module Audited
       # convenience wrapper around
       # @see Audit#as_user.
       def audit_as( user, &block )
-        Audited.audit_class.as_user( user, &block )
+        self.audit_class.as_user( user, &block )
       end
     end
   end

@@ -12,5 +12,6 @@ end
 ::MongoMapper::Document.plugin Audited::Auditor
 
 Audited.audit_class = Audited::Adapters::MongoMapper::Audit
+Audited.base_audit_class = Audited::Adapters::MongoMapper::Audit
 
 require 'audited/sweeper'

@@ -81,5 +81,21 @@ module Models
       self.table_name = 'companies'
       audited :on => [:create, :update]
     end
+
+    class UserWithSpecificAuditTable < ::ActiveRecord::Base
+      self.table_name = 'users'
+
+      audited :allow_mass_assignment => true, :except => :password,
+        :audit_table_name => 'user_table_override_audits'
+
+      attr_protected :logins
+      has_many :companies, class_name: "Company", dependent: :destroy
+
+      has_associated_audits :audit_table_name => 'user_table_override_audits'
+
+      def name=(val)
+        write_attribute(:name, CGI.escapeHTML(val))
+      end
+    end
   end
 end

@@ -2,7 +2,8 @@ module Audited
   VERSION = '3.0.0'
 
   class << self
-    attr_accessor :ignored_attributes, :current_user_method, :audit_class
+    attr_accessor :ignored_attributes, :current_user_method, :audit_class,
+      :base_audit_class
 
     def store
       Thread.current[:audited_store] ||= {}

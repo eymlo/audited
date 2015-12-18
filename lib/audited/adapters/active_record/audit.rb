@@ -13,13 +13,13 @@ module Audited
       # * <tt>comment</tt>: a comment set with the audit
       # * <tt>created_at</tt>: Time that the change was performed
       #
-      class Audit < ::ActiveRecord::Base
+      class BaseAudit < ::ActiveRecord::Base
         include Audited::Audit
 
+        self.abstract_class = true
 
         serialize :audited_changes
 
-        default_scope         order(:version)
         scope :descending,    reorder("version DESC")
         scope :creates,       :conditions => {:action => 'create'}
         scope :updates,       :conditions => {:action => 'update'}
@@ -54,6 +54,31 @@ module Audited
         alias_method :user_as_model, :user
         alias_method :user, :user_as_string
 
+        # Define child class with custom table name
+        def self.child_audit_class(child_table_name = nil)
+          return Audit if child_table_name.nil?
+
+          dynamic_class_name = child_table_name.classify
+
+          klass = nil
+
+          begin
+            klass = Audited::Adapters::ActiveRecord.const_get(dynamic_class_name)
+          rescue NameError
+          end
+
+          if klass.nil?
+            klass = Class.new(Audited::Adapters::ActiveRecord::BaseAudit) do
+              self.table_name = child_table_name
+              default_scope order(:version)
+            end
+
+            Audited::Adapters::ActiveRecord.const_set(dynamic_class_name, klass)
+          end
+
+          klass
+        end
+
       private
         def set_version_number
           max = self.class.maximum(:version,
@@ -63,6 +88,11 @@ module Audited
             }) || 0
           self.version = max + 1
         end
+      end
+
+      class Audit < BaseAudit
+        self.table_name = 'audits'
+        default_scope order(:version)
       end
     end
   end

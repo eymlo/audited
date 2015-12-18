@@ -202,4 +202,60 @@ describe Audited::Adapters::ActiveRecord::Audit, :adapter => :active_record do
     end
   end
 
+
+  describe "table name override" do
+    before :each do
+      @table_specific_user =
+        Models::ActiveRecord::UserWithSpecificAuditTable.new :name => 'Testing'
+      @user = Models::ActiveRecord::User.new :name => 'Testing'
+
+      result = ActiveRecord::Base.connection.execute(
+        "SELECT COUNT(*) FROM audits"
+      )
+      @audit_before_count = result.first.values.first
+
+      result = ActiveRecord::Base.connection.execute(
+        "SELECT COUNT(*) FROM user_table_override_audits"
+      )
+      @override_audit_before_count = result.first.values.first
+    end
+
+    it 'store audits to the specific table' do
+      @table_specific_user.name = 'test'
+      @table_specific_user.save!
+
+      result = ActiveRecord::Base.connection.execute(
+        "SELECT COUNT(*) FROM audits"
+      )
+      result.first.values.first.should eql(@audit_before_count)
+
+      result = ActiveRecord::Base.connection.execute(
+        "SELECT COUNT(*) FROM user_table_override_audits"
+      )
+      result.first.values.first.should eql(@override_audit_before_count + 1)
+
+      @table_specific_user.audits.count.should_not be(0)
+    end
+
+    it 'loads associated audits' do
+      @table_specific_user.name = 'test'
+      company = Models::ActiveRecord::Company.create :name => 'The auditors'
+      @table_specific_user.companies << company
+      @table_specific_user.save!
+
+      @table_specific_user.associated_audits.name.should eql(
+        "Audited::Adapters::ActiveRecord::UserTableOverrideAudit"
+      )
+    end
+
+    it 'should not affect the normal user model' do
+      @user.name = 'test'
+      @user.save!
+
+      result = ActiveRecord::Base.connection.execute(
+        "SELECT COUNT(*) FROM audits"
+      )
+      result.first.values.first.should eql(@audit_before_count + 1)
+    end
+  end
 end
